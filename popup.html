@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YouTube Summarizer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 16px;
+      width: 320px;
+      background-color: #f9fafb;
+      color: #374151;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-container {
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .instructions {
+      margin-top: 16px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      background-color: #10b981;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 8px;
+    }
+    
+    p {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+
+    .summarize-button {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 16px;
+      transition: background-color 0.2s;
+    }
+
+    .summarize-button:hover {
+      background-color: #1765cc;
+    }
+
+    .summarize-button:disabled {
+      background-color: #a9c8fa;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <h1>YouTube Video Summarizer</h1>
+  
+  <div class="info-container">
+    <p><strong>Status:</strong> <span class="status-badge">Ready to Use</span></p>
+  </div>
+  
+  <button id="summarize-current" class="summarize-button">Summarize Current Video</button>
+
+  <script src="popup.js"></script>
+</body>
+</html>
