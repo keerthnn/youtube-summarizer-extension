@@ -5,7 +5,8 @@ const { YoutubeTranscript } = require('youtube-transcript');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use(cors());
 
 const PORT = process.env.PORT || 3000;
@@ -19,9 +20,9 @@ app.get('/transcript', async (req, res) => {
     if (!videoId) {
       return res.status(400).json({ error: "Video ID is required" });
     }
-    
+
     const transcriptArray = await YoutubeTranscript.fetchTranscript(videoId);
-    
+
     const processedTranscript = transcriptArray.map(item => {
       const timestamp = formatTimestampFromSeconds(item.offset / 1000);
       return {
@@ -32,15 +33,18 @@ app.get('/transcript', async (req, res) => {
     
     const plainTranscript = transcriptArray.map(item => item.text).join(' ');
     
+
     res.json({ 
       transcript: plainTranscript,
       timestampedTranscript: processedTranscript 
     });
+    console.log("Transcript response sent"); // Debug log
   } catch (error) {
     console.error('Error fetching transcript:', error);
     res.status(500).json({ error: "Failed to fetch transcript" });
   }
 });
+
 
 function formatTimestampFromSeconds(seconds) {
   const hours = Math.floor(seconds / 3600);
@@ -55,8 +59,11 @@ function formatTimestampFromSeconds(seconds) {
 }
 
 app.post('/summarize', async (req, res) => {
+  console.log("Received POST request to summarize"); // Debug log
   try {
     const { transcript, videoTitle, isQuestion, existingTimestamps } = req.body;
+    console.log("Video Title:", videoTitle); // Debug log
+
     
     if (!transcript) {
       return res.status(400).json({ error: "Transcript is required" });
@@ -82,18 +89,19 @@ app.post('/summarize', async (req, res) => {
       - [Key idea or insight #8-12]
 
       3. **HIGHLIGHTS (with timestamps):**  
-      Select **10-15 key moments** that **span at least 40%** of the video"s duration.  
+      Select **10-15 key moments** that span the **entire video duration**.
 
-      **Coverage & Distribution Rules:**  
-      - **Span Coverage:** The time between your earliest and latest highlight must be ≥ 40% of the total video length.  
-      - **Intro (0-10%):** ≥2 highlights  
-      - **Middle (10-60%):** ≥5 highlights  
-      - **Conclusion (last 40%):** ≥3 highlights  
-      - **Even Spacing:** Any remaining highlights should be distributed evenly across the uncovered portions.
+      **Coverage & Distribution Rules (100% coverage):**
+      - Use **real timestamps** based on the transcript, not fabricated ones.
+      - Your first highlight should occur within the **first 5%** of the video.  
+      - Your last highlight should be within the **final 5%** of the video.  
+      - The remaining highlights must be **evenly distributed** across the rest of the timeline.
+      - Do **not** cluster highlights in just one section.
+      - Each timestamp must be matched with a **clear, specific description** of what is being said or discussed.
 
-      **Formatting (no deviations):**  
-      > **Example:**  
-      > - 02:15 - The host introduces the expert guest and outlines the video's main question.
+      **Quality Requirements:**
+      - Each timestamp must **accurately match** the described moment in the transcript.  
+      - Highlights must reflect real events, quotes, or key insights — avoid vague or generalized descriptions.
 
       Then list your highlights:
 
@@ -118,14 +126,12 @@ app.post('/summarize', async (req, res) => {
       *Note:* If the video description already has timestamps, you may use them—just verify they match the transcript and your descriptions exactly.
       `;
 
-
-
     if (isQuestion) {
       prompt += `
-4. ANSWER TO TITLE QUESTION:
-[Direct answer to the question in the title]
-[MM:SS] - [Timestamp where this answer is found]
-`;
+        4. ANSWER TO TITLE QUESTION:
+        [Direct answer to the question in the title]
+        [MM:SS] - [Timestamp where this answer is found]
+        `;
     }
 
     if (existingTimestamps && existingTimestamps.length > 0) {

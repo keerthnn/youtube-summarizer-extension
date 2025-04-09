@@ -44,8 +44,8 @@ function injectSummarizerUI() {
     controls.classList.add('summarizer-controls');
     
     const actionButtons = `
-      <button class="summarizer-control-btn" title="Copy"><span>📋</span></button>
-      <button class="summarizer-control-btn" title="Close"><span>❌</span></button>
+     
+      <button class="summarizer-control-btn" title="Close"><span>Close</span></button>
     `;
     controls.innerHTML = actionButtons;
 
@@ -212,7 +212,8 @@ async function handleSummarize() {
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const videoId = urlParams.get('v');
-    const videoTitle = document.querySelector('h1.title')?.textContent.trim() || "YouTube Video";
+    const titleEl = document.querySelector('h1.title yt-formatted-string') || document.querySelector('h1.title');
+    const videoTitle = titleEl?.textContent.trim() || "YouTube Video";
     const isQuestionTitle = isQuestion(videoTitle);
     
     if (!videoId) {
@@ -227,6 +228,8 @@ async function handleSummarize() {
     const transcriptData = await transcriptResponse.json();
     
     const descriptionTimestamps = extractTimestampsFromDescription();
+
+    console.log("Transcript data:", transcriptData); // Debug log
     
     const summaryResponse = await fetch('http://localhost:3000/summarize', {
       method: 'POST',
