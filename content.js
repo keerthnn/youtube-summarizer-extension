@@ -1,6 +1,15 @@
+function waitForSidebarAndInject() {
+  const sidebar = document.getElementById('secondary');
+  if (sidebar) {
+    injectSummarizerUI();
+  } else {
+    setTimeout(waitForSidebarAndInject, 300);
+  }
+}
+
 window.addEventListener('load', () => {
   if (window.location.pathname.includes('/watch')) {
-    injectSummarizerUI();
+    waitForSidebarAndInject();
   }
 });
 
@@ -10,7 +19,7 @@ new MutationObserver(() => {
   if (url !== lastUrl) {
     lastUrl = url;
     if (window.location.pathname.includes('/watch')) {
-      injectSummarizerUI();
+      waitForSidebarAndInject();
       
       const content = document.querySelector('.summarizer-content');
       if (content) {
@@ -96,7 +105,12 @@ function injectSummarizerUI() {
     summarizer.appendChild(content);
     summarizer.appendChild(footer);
 
-    document.body.appendChild(summarizer);
+    const sidebar = document.getElementById('secondary');
+    if (sidebar) {
+      sidebar.prepend(summarizer);
+    } else {
+      document.body.appendChild(summarizer);
+    }
     
     const copyButton = controls.querySelector('button:nth-child(1)');
     copyButton.addEventListener('click', () => {
@@ -119,26 +133,22 @@ function showMinimizedButton() {
     miniButton = document.createElement('button');
     miniButton.id = 'summarizer-mini-btn';
     miniButton.classList.add('summarizer-mini-button');
-    miniButton.innerHTML = `
-      <span>Summarize</span>
-    `;
-    
+    miniButton.innerHTML = `<span>Show Summary</span>`;
+
     miniButton.addEventListener('click', () => {
       const summarizer = document.getElementById('video-summarizer');
       if (summarizer) {
         summarizer.classList.remove('summarizer-minimized');
-        miniButton.style.display = 'none';
-      } else {
-        injectSummarizerUI();
-        miniButton.style.display = 'none';
+        miniButton.remove(); 
       }
     });
-    
-    document.body.appendChild(miniButton);
+
+    document.body.appendChild(miniButton); 
   }
-  
+
   miniButton.style.display = 'flex';
 }
+
 
 function isQuestion(title) {
   return title.includes('?') || 
@@ -191,7 +201,7 @@ function createTimestampLink(timestamp) {
   
   if (parts.length === 3) { 
     seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) { // MM:SS
+  } else if (parts.length === 2) { 
     seconds = parts[0] * 60 + parts[1];
   } else {
     seconds = parts[0];
@@ -249,7 +259,7 @@ async function handleSummarize() {
     }
     
     const summaryData = await summaryResponse.json();
-    console.log("Received summary data:", summaryData); // Debug log
+    console.log("Received summary data:", summaryData); 
     
     let summaryHTML = `<div class="summary-container">`;
     
