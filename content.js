@@ -53,7 +53,6 @@ function injectSummarizerUI() {
     controls.classList.add('summarizer-controls');
     
     const actionButtons = `
-     
       <button class="summarizer-control-btn" title="Close"><span>Close</span></button>
     `;
     controls.innerHTML = actionButtons;
@@ -111,56 +110,36 @@ function injectSummarizerUI() {
     } else {
       document.body.appendChild(summarizer);
     }
-    
-    const copyButton = controls.querySelector('button:nth-child(1)');
-    copyButton.addEventListener('click', () => {
-      const summary = document.querySelector('.summary-container')?.textContent;
-      if (summary) {
-        navigator.clipboard.writeText(summary);
-        const originalText = copyButton.querySelector('span').textContent;
-        copyButton.querySelector('span').textContent = '✓';
-        setTimeout(() => {
-          copyButton.querySelector('span').textContent = originalText;
-        }, 1500);
-      }
-    });
   }, 1000); 
 }
 
 function showMinimizedButton() {
-  let miniButton = document.getElementById('summarizer-mini-btn');
-  if (!miniButton) {
-    miniButton = document.createElement('button');
-    miniButton.id = 'summarizer-mini-btn';
-    miniButton.classList.add('summarizer-mini-button');
-    miniButton.innerHTML = `<span>Show Summary</span>`;
+  let miniBox = document.getElementById('summarizer-mini-box');
+  if (miniBox) return;
 
-    miniButton.addEventListener('click', () => {
-      const summarizer = document.getElementById('video-summarizer');
-      if (summarizer) {
-        summarizer.classList.remove('summarizer-minimized');
-        miniButton.remove(); 
-      }
-    });
+  miniBox = document.createElement('div');
+  miniBox.id = 'summarizer-mini-box';
+  miniBox.classList.add('summarizer-mini-box');
 
-    document.body.appendChild(miniButton); 
+  miniBox.innerHTML = `
+    <div class="mini-box-header">
+      <span>Video Summary</span>
+      <button class="restore-summary-btn">Show Summary</button>
+    </div>
+  `;
+
+  miniBox.querySelector('.restore-summary-btn').addEventListener('click', () => {
+    const summarizer = document.getElementById('video-summarizer');
+    if (summarizer) {
+      summarizer.classList.remove('summarizer-minimized');
+      miniBox.remove(); 
+    }
+  });
+
+  const sidebar = document.getElementById('secondary');
+  if (sidebar) {
+    sidebar.prepend(miniBox);
   }
-
-  miniButton.style.display = 'flex';
-}
-
-
-function isQuestion(title) {
-  return title.includes('?') || 
-    title.toLowerCase().startsWith('how') || 
-    title.toLowerCase().startsWith('what') || 
-    title.toLowerCase().startsWith('why') || 
-    title.toLowerCase().startsWith('when') || 
-    title.toLowerCase().startsWith('where') || 
-    title.toLowerCase().startsWith('who') || 
-    title.toLowerCase().startsWith('which') || 
-    title.toLowerCase().startsWith('can') || 
-    title.toLowerCase().startsWith('will');
 }
 
 function extractTimestampsFromDescription() {
@@ -224,7 +203,6 @@ async function handleSummarize() {
     const videoId = urlParams.get('v');
     const titleEl = document.querySelector('h1.title yt-formatted-string') || document.querySelector('h1.title');
     const videoTitle = titleEl?.textContent.trim() || "YouTube Video";
-    const isQuestionTitle = isQuestion(videoTitle);
     
     if (!videoId) {
       throw new Error('Could not find video ID');
@@ -249,8 +227,9 @@ async function handleSummarize() {
       body: JSON.stringify({ 
         transcript: transcriptData.transcript,
         videoTitle: videoTitle,
-        isQuestion: isQuestionTitle,
-        existingTimestamps: descriptionTimestamps
+        existingTimestamps: descriptionTimestamps,
+        duration: transcriptData.duration,
+        lang: transcriptData.lang
       })
     });
     
@@ -275,21 +254,6 @@ async function handleSummarize() {
     });
     
     summaryHTML += `</ul></div>`;
-    
-    if (isQuestionTitle && summaryData.answer) {
-      summaryHTML += `
-        <div class="summary-section">
-          <h3 class="summary-section-title">Answer to "${videoTitle}"</h3>
-          <p class="title-answer">${summaryData.answer}</p>
-      `;
-      
-      if (summaryData.answerTimestamp) {
-        const timestampLink = createTimestampLink(summaryData.answerTimestamp);
-        summaryHTML += `<p class="answer-timestamp">Answer found at <a href="${timestampLink}" target="_blank">${summaryData.answerTimestamp}</a></p>`;
-      }
-      
-      summaryHTML += `</div>`;
-    }
     
     summaryHTML += `
       <div class="summary-section">
