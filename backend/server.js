@@ -64,7 +64,7 @@ app.post('/summarize', async (req, res) => {
       ---
 
       1. **TITLE:**  
-      A short and clear title that captures the main topic of the video.
+      Use the exact title of the video. Do **not** modify or reword it.
 
       2. **SUMMARY POINTS (8-12 total):**  
       Summarize the core ideas and insights from the video.  
@@ -160,9 +160,9 @@ function parseStructuredResponse(response, videoDuration) {
   try {
     const titleMatch = response.match(/TITLE:?\s*\n?(.*?)(?=\n\s*\d+\.|$)/s);
     if (titleMatch && titleMatch[1]) {
-      structuredData.title = titleMatch[1].trim();
+      structuredData.title = titleMatch[1].replace(/\*\*/g, '').trim();
     }
-    
+
     const summaryMatch = response.match(/SUMMARY POINTS:?\s*\n?([\s\S]*?)(?=\n\s*\d+\.|$)/s);
     if (summaryMatch && summaryMatch[1]) {
       const points = summaryMatch[1].split('\n').filter(line => 

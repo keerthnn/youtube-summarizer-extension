@@ -113,6 +113,28 @@ function injectSummarizerUI() {
   }, 1000); 
 }
 
+function getVideoTitle() {
+  const possibleSelectors = [
+    '#title h1 yt-formatted-string',
+    '#title h1',
+    '#title yt-formatted-string',
+    'h1.title yt-formatted-string',
+    'h1.title',
+    '#above-the-fold #title'
+  ];
+  
+  for (const selector of possibleSelectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      console.log("Found title with selector:", selector);
+      return element.textContent.trim();
+    }
+  }
+  
+  console.log("Could not find video title with any selector");
+  return "YouTube Video";
+}
+
 function showMinimizedButton() {
   let miniBox = document.getElementById('summarizer-mini-box');
   if (miniBox) return;
@@ -201,8 +223,7 @@ async function handleSummarize() {
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const videoId = urlParams.get('v');
-    const titleEl = document.querySelector('h1.title yt-formatted-string') || document.querySelector('h1.title');
-    const videoTitle = titleEl?.textContent.trim() || "YouTube Video";
+    const videoTitle = getVideoTitle();
     
     if (!videoId) {
       throw new Error('Could not find video ID');
@@ -301,4 +322,4 @@ async function handleSummarize() {
   } finally {
     summarizeBtn.disabled = false;
   }
-}summarizer-mini-box
+}
