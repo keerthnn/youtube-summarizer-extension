@@ -1,3 +1,2 @@
-# Ignore node_modules and .env inside backend/
 backend/node_modules/
 backend/.env

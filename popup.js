@@ -1,8 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // Check if the backend server is reachable
   checkServerConnection();
   
-  // Add event listener to the summarize button
   const summarizeButton = document.getElementById('summarize-current');
   summarizeButton.addEventListener('click', handleSummarizeClick);
 });
@@ -74,6 +72,7 @@ async function handleSummarizeClick() {
     summarizeButton.disabled = false;
   }
 }
+
 
 function triggerSummarize() {
   const summarizeBtn = document.querySelector('.summarizer-btn');

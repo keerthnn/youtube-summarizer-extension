@@ -68,7 +68,7 @@ function injectSummarizerUI() {
 
     const summarizeBtn = document.createElement('button');
     summarizeBtn.classList.add('summarizer-btn');
-    summarizeBtn.textContent = 'Summarize Video';
+    summarizeBtn.textContent = 'Summarize';
     summarizeBtn.addEventListener('click', handleSummarize);
 
     const content = document.createElement('div');
@@ -301,4 +301,4 @@ async function handleSummarize() {
   } finally {
     summarizeBtn.disabled = false;
   }
-}
+}summarizer-mini-box
