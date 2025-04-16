@@ -11,7 +11,7 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = "gemini-1.5-pro-002";
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 app.get('/transcript', async (req, res) => {
   try {
@@ -25,8 +25,12 @@ app.get('/transcript', async (req, res) => {
 
     const plainTranscript = transcriptArray.map(item => item.text).join(' ');
     
-    const duration = transcriptArray.length > 0 ? 
-      transcriptArray[transcriptArray.length - 1].offset + transcriptArray[transcriptArray.length - 1].duration : 0;
+    const duration = transcriptArray.reduce((max, item) => {
+      const end = item.offset + (item.duration || 0);
+      return end > max ? end : max;
+    }, 0);    
+
+    console.log("Duration:", duration);
     
     const lang = transcriptArray.length > 0 && transcriptArray[0].language ? 
       transcriptArray[0].language : 'en';
@@ -177,7 +181,7 @@ function parseStructuredResponse(response, videoDuration) {
     if (highlightsMatch && highlightsMatch[1]) {
       const highlightLines = highlightsMatch[1].split('\n').filter(line => 
         (line.trim().startsWith('-') || line.trim().startsWith('•')) && 
-        /\d+:\d+/.test(line) // Contains a timestamp
+        /\d+:\d+/.test(line) 
       );
       
       highlightLines.forEach(line => {
@@ -186,10 +190,14 @@ function parseStructuredResponse(response, videoDuration) {
           const timestamp = highlightMatch[1].trim();
           const description = highlightMatch[2].trim();
           
-          structuredData.highlights.push({
-            timestamp,
-            description
-          });
+          const timeInSeconds = convertTimestampToSeconds(timestamp);
+
+          if (timeInSeconds <= videoDuration) {
+            structuredData.highlights.push({
+              timestamp,
+              description
+            });
+          }
         }
       });
       
@@ -259,9 +267,9 @@ function parseStructuredResponse(response, videoDuration) {
 function convertTimestampToSeconds(timestamp) {
   const parts = timestamp.split(':').map(Number);
   
-  if (parts.length === 3) { // HH:MM:SS format
+  if (parts.length === 3) { 
     return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) { // MM:SS format
+  } else if (parts.length === 2) { 
     return parts[0] * 60 + parts[1];
   } else {
     return parts[0];

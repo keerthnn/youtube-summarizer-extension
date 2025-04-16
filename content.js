@@ -78,7 +78,7 @@ function injectSummarizerUI() {
     const footer = document.createElement('div');
     footer.classList.add('summarizer-footer');
     footer.innerHTML = `
-      <button class="summarizer-share-btn">Copy Summary</button>
+      <button class="summarizer-share-btn">Copy</button>
     `;
     
     const shareBtn = footer.querySelector('.summarizer-share-btn');
