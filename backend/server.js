@@ -52,13 +52,29 @@ app.get('/transcript', async (req, res) => {
 app.post('/summarize', async (req, res) => {
   console.log("Received POST request to summarize"); 
   try {
-    const { transcript, videoTitle, existingTimestamps, duration, lang } = req.body;
-    console.log("Video Title:", videoTitle); 
+    const { transcript, videoTitle, existingTimestamps, duration, lang, timestampedTranscript } = req.body;
+    console.log("Video Title:", videoTitle);
+    console.log("Video Duration:", duration, "seconds");
+    
     if (!transcript) {
       return res.status(400).json({ error: "Transcript is required" });
     }
     
-    const videoDuration = duration || Math.ceil(transcript.split(/\s+/).length / 150) * 60; 
+    const videoDuration = duration || Math.ceil(transcript.split(/\s+/).length / 150) * 60;
+    
+    const timestampReferences = [];
+    if (timestampedTranscript && timestampedTranscript.length > 0) {
+      const interval = Math.floor(timestampedTranscript.length / 15);
+      for (let i = 0; i < timestampedTranscript.length; i += interval) {
+        if (i < timestampedTranscript.length) {
+          const item = timestampedTranscript[i];
+          timestampReferences.push({
+            time: formatTimestamp(item.offset),
+            text: item.text.substring(0, 50) + (item.text.length > 50 ? '...' : '')
+          });
+        }
+      }
+    }
     
     let prompt = `
       You are a summarization expert. I need a **structured summary** of a YouTube video based on the transcript provided.
@@ -67,10 +83,7 @@ app.post('/summarize', async (req, res) => {
 
       ---
 
-      1. **TITLE:**  
-      Use the exact title of the video. Do **not** modify or reword it.
-
-      2. **SUMMARY POINTS (8-12 total):**  
+      1. **SUMMARY POINTS (8-12 total):**  
       Summarize the core ideas and insights from the video.  
       Each bullet should express one distinct, complete thought. Be concise and informative.
 
@@ -79,46 +92,51 @@ app.post('/summarize', async (req, res) => {
       - …  
       - [Key idea or insight #8-12]
 
-      3. **HIGHLIGHTS (with timestamps):**  
-      Select **exactly 12-15 key moments** that span the **entire video duration**. This is CRITICAL.
+      2. **HIGHLIGHTS (with timestamps):**  
+      Select **exactly 10-12 key moments** that span the **entire video duration**. This is CRITICAL.
 
       **MANDATORY Coverage & Distribution Rules (100% coverage):**
-      - Use **real timestamps** based on the transcript, not fabricated ones.
-      - Your first highlight MUST occur within the **first 5%** of the video.  
-      - Your last highlight MUST be within the **final 5%** of the video.  
+      - Use **real timestamps** based on the transcript data I'm providing.
+      - Your first highlight MUST occur within the **first 10%** of the video.  
+      - Your last highlight MUST be within the **final 10%** of the video.  
       - The remaining highlights MUST be **evenly distributed** across the rest of the timeline.
-      - Do **not** cluster highlights in just one section.
       - Each timestamp must be matched with a **clear, specific description** of what is being said or discussed.
-      - The entire video is approximately ${Math.ceil(videoDuration/60)} minutes long - your highlights should reflect this full duration.
-      - This is a STRICT requirement - you MUST provide full coverage with evenly spaced timestamps.
+      - The video is exactly ${Math.ceil(videoDuration/60)} minutes long (${formatTimestamp(videoDuration)}).
+      - DO NOT generate timestamps beyond ${formatTimestamp(videoDuration)}.
 
       **Quality Requirements:**
-      - Each timestamp must **accurately match** the described moment in the transcript.  
+      - ONLY use timestamps that actually exist in the transcript.
       - Highlights must reflect real events, quotes, or key insights — avoid vague or generalized descriptions.
+      - Each timestamp should correspond to something specifically said at that moment.
 
       Then list your highlights:
 
       - [MM:SS] - [Brief but precise description of what is discussed or shown at this moment]  
       - [MM:SS] - […]  
-      - … (12-15 total, evenly distributed)
+      - … (10-12 total, evenly distributed)
 
       ---
 
       **Video Title:** "${videoTitle}"  
-      **Transcript:**  
-      ${transcript}
+      **Video Duration:** ${formatTimestamp(videoDuration)}
+    `;
 
-      *Note:* If the video description already has timestamps, you may use them—just verify they match the transcript and your descriptions exactly.
-      `;
+    if (timestampReferences.length > 0) {
+      prompt += `\n\n**Available Timestamp Reference Points:**\n`;
+      timestampReferences.forEach(ref => {
+        prompt += `- ${ref.time} - "${ref.text}"\n`;
+      });
+      prompt += `\nUse ONLY these timestamps or times very close to them in your highlights.`;
+    }
 
     if (existingTimestamps && existingTimestamps.length > 0) {
-      prompt += `\nThe video already contains these timestamps in its description. Please incorporate them into your highlights when relevant:\n`;
+      prompt += `\n\nThe video already contains these timestamps in its description. Please incorporate them into your highlights when relevant:\n`;
       existingTimestamps.forEach(ts => {
         prompt += `- ${ts.time} - ${ts.description}\n`;
       });
     }
 
-    prompt += `\nVideo Title: "${videoTitle}"\n\nHere's the transcript:\n\n${transcript}\n\nRemember to include timestamp and description for each highlight, formatted exactly as "MM:SS - Description". You MUST provide 12-15 timestamps that are evenly distributed throughout the video's duration of ${Math.ceil(videoDuration/60)} minutes.`;
+    prompt += `\n\n**Transcript:**\n${transcript}\n\nRemember to include timestamp and description for each highlight, formatted exactly as "MM:SS - Description". Your highlights MUST be within the video duration of ${formatTimestamp(videoDuration)}.`;
 
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,

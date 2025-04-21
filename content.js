@@ -167,20 +167,27 @@ function showMinimizedButton() {
 function extractTimestampsFromDescription() {
   const descriptionElement = document.querySelector('#description-inline-expander');
   if (!descriptionElement) return null;
-  
+
   const descText = descriptionElement.textContent;
-  const timestampRegex = /(\d+:\d+(?::\d+)?)\s+-\s+(.+?)(?=\n\d+:\d+|$)/g;
   
+  const timestampRegex = /^\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:[-–—:|]|\s)?\s*(.+?)(?=\n\s*\d{1,2}:\d{2}(?::\d{2})?|\n*$)/gm;
+
   let matches;
   const timestamps = [];
-  
+  const seen = new Set();
+
   while ((matches = timestampRegex.exec(descText)) !== null) {
-    timestamps.push({
-      time: matches[1],
-      description: matches[2].trim()
-    });
+    const time = matches[1].trim();
+    const description = matches[2].trim();
+    const key = `${time} - ${description}`;
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      timestamps.push({ time, description });
+    }
   }
-  
+
+  console.log("Extracted timestamps:", timestamps);
   return timestamps.length > 0 ? timestamps : null;
 }
 
