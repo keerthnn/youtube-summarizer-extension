@@ -165,31 +165,112 @@ function showMinimizedButton() {
 }
 
 function extractTimestampsFromDescription() {
-  const descriptionElement = document.querySelector('#description-inline-expander');
+  try {
+    const ytInitialData = window.ytInitialData || {};
+    const playerResponse = window.ytInitialPlayerResponse || {};
+    
+    let fullDescription = '';
+    
+    if (playerResponse.videoDetails && playerResponse.videoDetails.shortDescription) {
+      fullDescription = playerResponse.videoDetails.shortDescription;
+    } else if (ytInitialData.contents?.twoColumnWatchNextResults?.results?.results?.contents) {
+      const contents = ytInitialData.contents.twoColumnWatchNextResults.results.results.contents;
+      for (const item of contents) {
+        if (item.videoSecondaryInfoRenderer?.description?.runs) {
+          fullDescription = item.videoSecondaryInfoRenderer.description.runs
+            .map(run => run.text)
+            .join('');
+          break;
+        }
+      }
+    }
+    
+    if (!fullDescription) {
+      const expandButton = document.querySelector('#expand') || 
+                           document.querySelector('#more') ||
+                           document.querySelector('tp-yt-paper-button#expand');
+      
+      let wasCollapsed = false;
+      if (expandButton && expandButton.offsetParent !== null) {
+        wasCollapsed = true;
+        expandButton.click();
+        return new Promise(resolve => {
+          setTimeout(() => {
+            const result = processExtractedDescription(document.querySelector('#description-inline-expander'));
+
+            if (wasCollapsed) {
+              const collapseButton = document.querySelector('#collapse') || 
+                                     document.querySelector('tp-yt-paper-button#collapse');
+              if (collapseButton) collapseButton.click();
+            }
+
+            resolve(result);
+          }, 150);
+        });
+      } else {
+        return processExtractedDescription(document.querySelector('#description-inline-expander'));
+      }
+    }
+    
+    return processDescription(fullDescription);
+    
+  } catch (error) {
+    console.error("Error extracting timestamps:", error);
+    const descriptionElement = document.querySelector('#description-inline-expander');
+    return processExtractedDescription(descriptionElement);
+  }
+}
+
+
+function processExtractedDescription(descriptionElement) {
   if (!descriptionElement) return null;
-
-  const descText = descriptionElement.textContent;
   
-  const timestampRegex = /^\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:[-–—:|]|\s)?\s*(.+?)(?=\n\s*\d{1,2}:\d{2}(?::\d{2})?|\n*$)/gm;
+  let descText = '';
+  
+  const contentElement = descriptionElement.querySelector('#content') || 
+                        descriptionElement.querySelector('#description-text');
+  
+  if (contentElement) {
+    descText = contentElement.textContent;
+  } else {
+    descText = descriptionElement.textContent;
+  }
+  
+  return processDescription(descText);
+}
 
+function processDescription(descText) {
+  if (!descText || descText.trim() === '') return null;
+    
+  const timestampRegex = /(?:^|\n)\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—:|\s]*\s*(.+?)(?=\n\s*\d{1,2}:\d{2}(?::\d{2})?|\n*$)/gm;
+  
+  const normalizeTime = (rawTime) => {
+    const parts = rawTime.split(':').map(part => part.padStart(2, '0'));
+    if (parts.length === 2) {
+      return `00:${parts[0]}:${parts[1]}`; 
+    }
+    return parts.join(':'); 
+  };
+  
   let matches;
   const timestamps = [];
   const seen = new Set();
-
+  
   while ((matches = timestampRegex.exec(descText)) !== null) {
-    const time = matches[1].trim();
+    const normalizedTime = normalizeTime(matches[1].trim());
     const description = matches[2].trim();
-    const key = `${time} - ${description}`;
-
+    const key = `${normalizedTime} - ${description}`;
+    
     if (!seen.has(key)) {
       seen.add(key);
-      timestamps.push({ time, description });
+      timestamps.push({ time: normalizedTime, description });
     }
   }
-
+  
   console.log("Extracted timestamps:", timestamps);
   return timestamps.length > 0 ? timestamps : null;
 }
+
 
 function formatTimestamp(seconds) {
   const hours = Math.floor(seconds / 3600);
