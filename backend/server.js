@@ -30,7 +30,6 @@ app.get('/transcript', async (req, res) => {
       return end > max ? end : max;
     }, 0);    
 
-    console.log("Duration:", duration);
     
     const lang = transcriptArray.length > 0 && transcriptArray[0].language ? 
       transcriptArray[0].language : 'en';
@@ -55,6 +54,7 @@ app.post('/summarize', async (req, res) => {
     const { transcript, videoTitle, existingTimestamps, duration, lang, timestampedTranscript } = req.body;
     console.log("Video Title:", videoTitle);
     console.log("Video Duration:", duration, "seconds");
+    console.log("existingTimestamps:", existingTimestamps);
     
     if (!transcript) {
       return res.status(400).json({ error: "Transcript is required" });

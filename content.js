@@ -166,15 +166,17 @@ function showMinimizedButton() {
 
 function extractTimestampsFromDescription() {
   try {
+    let fullDescription = '';
+    
     const ytInitialData = window.ytInitialData || {};
     const playerResponse = window.ytInitialPlayerResponse || {};
     
-    let fullDescription = '';
-    
     if (playerResponse.videoDetails && playerResponse.videoDetails.shortDescription) {
       fullDescription = playerResponse.videoDetails.shortDescription;
-    } else if (ytInitialData.contents?.twoColumnWatchNextResults?.results?.results?.contents) {
+    } 
+    else if (ytInitialData.contents?.twoColumnWatchNextResults?.results?.results?.contents) {
       const contents = ytInitialData.contents.twoColumnWatchNextResults.results.results.contents;
+      
       for (const item of contents) {
         if (item.videoSecondaryInfoRenderer?.description?.runs) {
           fullDescription = item.videoSecondaryInfoRenderer.description.runs
@@ -182,95 +184,152 @@ function extractTimestampsFromDescription() {
             .join('');
           break;
         }
+        
+        if (item.structuredDescriptionContentRenderer?.items) {
+          const items = item.structuredDescriptionContentRenderer.items;
+          for (const descItem of items) {
+            if (descItem.videoDescriptionTextItem?.content) {
+              fullDescription += descItem.videoDescriptionTextItem.content + "\n";
+            }
+          }
+          if (fullDescription) break;
+        }
       }
     }
     
-    if (!fullDescription) {
+    if (!fullDescription || !fullDescription.includes("Time Stamp") && !fullDescription.includes("Timestamps")) {
       const expandButton = document.querySelector('#expand') || 
-                           document.querySelector('#more') ||
-                           document.querySelector('tp-yt-paper-button#expand');
+                         document.querySelector('#more') ||
+                         document.querySelector('tp-yt-paper-button#expand') ||
+                         document.querySelector('button[aria-label="Show more"]');
       
       let wasCollapsed = false;
       if (expandButton && expandButton.offsetParent !== null) {
         wasCollapsed = true;
         expandButton.click();
+        
         return new Promise(resolve => {
           setTimeout(() => {
-            const result = processExtractedDescription(document.querySelector('#description-inline-expander'));
-
+            const result = extractDescriptionFromDOM();
+            
             if (wasCollapsed) {
               const collapseButton = document.querySelector('#collapse') || 
-                                     document.querySelector('tp-yt-paper-button#collapse');
+                                   document.querySelector('tp-yt-paper-button#collapse') ||
+                                   document.querySelector('button[aria-label="Show less"]');
               if (collapseButton) collapseButton.click();
             }
-
+            
             resolve(result);
-          }, 150);
+          }, 300); 
         });
       } else {
-        return processExtractedDescription(document.querySelector('#description-inline-expander'));
+        return extractDescriptionFromDOM();
       }
     }
     
     return processDescription(fullDescription);
-    
   } catch (error) {
-    console.error("Error extracting timestamps:", error);
-    const descriptionElement = document.querySelector('#description-inline-expander');
-    return processExtractedDescription(descriptionElement);
+    return extractDescriptionFromDOM();
   }
 }
 
-
-function processExtractedDescription(descriptionElement) {
-  if (!descriptionElement) return null;
+function extractDescriptionFromDOM() {
+  const descriptionContainers = [
+    document.querySelector('#description-inline-expander'),
+    document.querySelector('ytd-text-inline-expander#description'),
+    document.querySelector('#description'),
+    document.querySelector('[itemprop="description"]'),
+    document.querySelector('ytm-description-shelf-renderer'),
+    document.querySelector('ytm-video-description-content-renderer')
+  ].filter(Boolean);
   
-  let descText = '';
+  let fullText = '';
   
-  const contentElement = descriptionElement.querySelector('#content') || 
-                        descriptionElement.querySelector('#description-text');
-  
-  if (contentElement) {
-    descText = contentElement.textContent;
-  } else {
-    descText = descriptionElement.textContent;
+  for (const container of descriptionContainers) {
+    const textContent = container.textContent || '';
+    
+    if (textContent.length > fullText.length) {
+      fullText = textContent;
+    }
+    
+    const allParagraphs = container.querySelectorAll('span, p, div');
+    for (const para of allParagraphs) {
+      const paraText = para.textContent || '';
+      if ((paraText.includes('Time Stamp') || 
+           paraText.includes('Timestamps') || 
+           paraText.includes('00:0') || 
+           paraText.includes('00:1')) && 
+          paraText.length > 20) {
+        return processDescription(paraText);
+      }
+    }
   }
   
-  return processDescription(descText);
+  return processDescription(fullText);
 }
 
 function processDescription(descText) {
   if (!descText || descText.trim() === '') return null;
     
-  const timestampRegex = /(?:^|\n)\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—:|\s]*\s*(.+?)(?=\n\s*\d{1,2}:\d{2}(?::\d{2})?|\n*$)/gm;
-  
+  const timeStampSection = findTimestampSection(descText);
+  if (timeStampSection) {
+    descText = timeStampSection;
+  }
+
+  const timestampRegex = /^\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(?:[-–—:|]|\s)?\s*(.+?)(?=\n\s*\d{1,2}:\d{2}(?::\d{2})?|\n*$)/gm;
+
   const normalizeTime = (rawTime) => {
     const parts = rawTime.split(':').map(part => part.padStart(2, '0'));
-    if (parts.length === 2) {
-      return `00:${parts[0]}:${parts[1]}`; 
-    }
-    return parts.join(':'); 
+    if (parts.length === 2) parts.unshift('00'); 
+    return parts.join(':');
   };
-  
+
   let matches;
   const timestamps = [];
   const seen = new Set();
-  
+
   while ((matches = timestampRegex.exec(descText)) !== null) {
-    const normalizedTime = normalizeTime(matches[1].trim());
-    const description = matches[2].trim();
-    const key = `${normalizedTime} - ${description}`;
+    const rawTime = matches[1].trim();
+    const rawDesc = matches[2].trim();
+
+    const normalizedTime = normalizeTime(rawTime);
+    const key = `${normalizedTime}-${rawDesc}`;
     
     if (!seen.has(key)) {
       seen.add(key);
-      timestamps.push({ time: normalizedTime, description });
+      timestamps.push({ time: normalizedTime, description: rawDesc });
     }
   }
-  
+
   console.log("Extracted timestamps:", timestamps);
   return timestamps.length > 0 ? timestamps : null;
 }
 
+function findTimestampSection(text) {
+  const timeStampHeaders = [
+    "Time Stamp", "Timestamps", "TIMESTAMPS", "TIMESTAMP", 
+    "Time Stamps", "TIME STAMP", "TIME STAMPS"
+  ];
+  
+  for (const header of timeStampHeaders) {
+    const index = text.indexOf(header);
+    if (index >= 0) {
+      let endIndex = text.length;
+      
+      const endMarkers = ["-----", "=====", "END", "Subscribe", "Follow me", "#"];
+      for (const marker of endMarkers) {
+        const markerIndex = text.indexOf(marker, index + header.length);
+        if (markerIndex > index && markerIndex < endIndex) {
+          endIndex = markerIndex;
+        }
+      }
+      
+      return text.substring(index, endIndex);
+    }
+  }
+  
+  return null;
+}
 
 function formatTimestamp(seconds) {
   const hours = Math.floor(seconds / 3600);
@@ -325,6 +384,8 @@ async function handleSummarize() {
     const transcriptData = await transcriptResponse.json();
     
     const descriptionTimestamps = extractTimestampsFromDescription();
+
+    console.log("Description timestamps:", descriptionTimestamps); // Debug log
 
     console.log("Transcript data:", transcriptData); // Debug log
     
