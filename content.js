@@ -383,7 +383,7 @@ async function handleSummarize() {
     
     const transcriptData = await transcriptResponse.json();
     
-    const descriptionTimestamps = extractTimestampsFromDescription();
+    const descriptionTimestamps = await Promise.resolve(extractTimestampsFromDescription());
 
     console.log("Description timestamps:", descriptionTimestamps); // Debug log
 
