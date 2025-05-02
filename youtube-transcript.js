@@ -122,7 +122,7 @@ async fetchTranscript(videoId) {
         const text = node.textContent || '';
         const start = parseFloat(node.getAttribute('start') || '0');
         const duration = parseFloat(node.getAttribute('dur') || '0');
-        const timestamp = this.formatTimestampFromSeconds(start);
+        const timestamp = formatTimestamp(start);
         
         transcript.push({
           text: text.trim(),
@@ -144,17 +144,6 @@ async fetchTranscript(videoId) {
     } catch (error) {
       console.error('Error parsing captions XML:', error);
       throw new Error('Failed to parse captions');
-    }
-  }
-
-  formatTimestampFromSeconds(seconds) {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } else {
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
   }
 }
